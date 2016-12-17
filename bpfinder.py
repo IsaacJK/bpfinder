@@ -6,6 +6,7 @@ Author: Isaac J Kimsey
 # StdLib modules
 import os, sys, string
 from time import clock, time
+import datetime
 # Custom modules
 import control, updateBPF, menu
 import cPickle as pickle
@@ -21,6 +22,7 @@ realPath = os.path.dirname(os.path.realpath(__file__)) + "/"
   #Folder that stores all the .dat files that are needed by this program
 datDir = os.path.join(realPath, "dat/")
 
+err_logp = os.path.join(datDir, 'ErrorLog-{:%Y-%m-%d %Hh%Mm%Ss}.txt'.format(datetime.datetime.now()))
   #Current working directory
 curDir = os.getcwd()
 
@@ -241,7 +243,7 @@ else:
           print " 1. [%s] X-Ray Structures ([Y]es/[N]o)"  % upXray
           print " 2. [%s - %s] X-Ray resolution" %  (lores, hires)
           print " 3. [%s] NMR Structures ([Y]es/[N]o)" % upNmr
-          print " 4. [%s] Purge and force update ([Y]es/[N]o)" % forceup
+          print " 4. [%s] Purge and force rebuild ([Y]es/[N]o)" % forceup
           print " 9. Reset Parameters"
           print " 0. Save and Return"
           opt1 = int(raw_input(" > "))
@@ -333,13 +335,13 @@ else:
             else:
               if upXray == "Y" and upNmr == "N":
                 ctrl.fullUp(namepath, pairspath, resolution, pdbdatapath,
-                                  hairpinpath, "XRAY", None, purge=purge)
+                                  hairpinpath, "XRAY", datDir, purge=purge)
               elif upXray == "N" and upNmr == "Y":
                 ctrl.fullUp(namepath, pairspath, resolution, pdbdatapath, 
-                                  hairpinpath, "NMR", None, purge=purge)
+                                  hairpinpath, "NMR", datDir, purge=purge)
               elif upXray == "Y" and upNmr == "Y":
                 ctrl.fullUp(namepath, pairspath, resolution, pdbdatapath,
-                                  hairpinpath, "BOTH", None, purge=purge)                
+                                  hairpinpath, "BOTH", datDir, purge=purge)                
             break
         except ValueError: print "Please select an integer value."
 
@@ -356,6 +358,7 @@ else:
         #Uses small number of PDB files to work with, to speed up loading
         #and processing time
     elif sys.argv[1] == "-dev":
+      # Create an error log file for this update
       if fileExists(hairpinpath) == False:
         print "hairpins.dat does not exist."
       purge = True
@@ -364,7 +367,7 @@ else:
         #Tells control to tell the updater to only update with HYB XRAY strucs
         #less than 2.0 angstrom, <50 strucs.
       ctrl.fullUp(namepath, pairspath, 2.0, pdbdatapath, hairpinpath, 
-                        "DEV", None, purge=purge)    
+                        "DEV", datDir, purge=purge, err_logp = err_logp)    
 
     elif sys.argv[1] == "-pdbdata":
       if len(sys.argv) == 2:     

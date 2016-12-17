@@ -30,15 +30,15 @@ class Run3DNA:
     if not os.path.exists(self.mbpDir): os.makedirs(self.mbpDir) 
     if not os.path.exists(self.outpDir): os.makedirs(self.outpDir)
     if not os.path.exists(self.dssrDir): os.makedirs(self.dssrDir)        
-    self.findPair = "find_pair -p -original_coordinate %s.pdb %s.mbp" 
-    self.dssr = "x3dna-dssr --long-idstr -i=%s.pdb -o=%s.dssr"
+    self.findPair = "find_pair -p -symm -original_coordinate %s.pdb %s.mbp" 
+    self.dssr = "x3dna-dssr --symm --long-idstr -i=%s.pdb -o=%s.dssr"
     for i in self.names:
         #Check if MBP file already exists
       temp_mbp_path = os.path.join(self.mbpDir, i + ".mbp")
       if self.fileExists(temp_mbp_path) == False or purge == True:
         os.system(self.findPair % ((self.pdbPath + i),
                                    (self.mbpDir + i)))
-        os.system("analyze -c allpairs.ana")
+        os.system("analyze -c -symm allpairs.ana")
         os.system(self.dssr % ((self.pdbPath + i),
                           (self.dssrDir + i)))
         temp_outp_path = os.path.join(i + ".outp")

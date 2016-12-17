@@ -1,6 +1,7 @@
 import os, sys, string, marshal, math
 import cPickle as pickle
 import strucs, parse, updateBPF, run3dna
+import datetime
 
 class Control:
   def __init__(self):
@@ -34,8 +35,8 @@ class Control:
     self.realDir = os.path.dirname(os.path.realpath(__file__))
     self.datDir = os.path.join(self.realDir, "dat/")
 
-    # self.tempPDB = self.curDir + "tempPDB/"
     self.tempPDB = os.path.join(self.realDir, "tempPDB/")
+    # self.tempPDB = "/Users/kimseyij/Del/PDB_NA_XRAY_3A/"
     self.mbpDir, self.outpDir, self.dssrDir = None, None, None
       #Define Run3DNA class
     self.r3dna = run3dna.Run3DNA()
@@ -92,8 +93,11 @@ class Control:
     #Upmethod gets passed to updateBPF, which tells it which PDB names to
     #retrieve from the PDB server
     #listpath - directory of list to be used to update
+    #purge - bool to make program overwrite existing files
+    #err_logp is the error log path to write errors to
   def fullUp(self, namepath, pairsdat, resolution, pdbdatapath, 
-                    hairpinpath, upmethod, listpath, purge=False): 
+                    hairpinpath, upmethod, listpath, purge=False,
+                    err_logp = "error.log"): 
       #Get list of previous PDB files
     FILE = open(namepath, "rb")
     self.nameDatPairs = pickle.load(FILE)
@@ -114,27 +118,69 @@ class Control:
 
       #find the difference in new vs old, if any
     self.pdbDiffName = self.newPDBNames - self.nameDatPairs
+
+    # Write out list of previously curated PDBs existing in database
+    update_old_pdb = os.path.join(listpath, "Update-Previous_PDB_Database.txt")
+    FILE = open(update_old_pdb, "wb")
+    for l in sorted(list(self.nameDatPairs)):
+      FILE.write(l + "\n")
+    FILE.close()
+
+    # Write out list of new PDBs to download and parse
+    update_diff_pdb = os.path.join(listpath, "Update-Only_New_PDB_Requests.txt")
+    FILE = open(update_diff_pdb, "wb")
+    for l in sorted(list(self.pdbDiffName)):
+      FILE.write(l + "\n")
+    FILE.close()
+
       #Add PDB name here if you need it fixed selectively
     # self.pdbDiffName.add("1S72")
     # self.pdbDiffName.add("3UYD")
-      #if the difference between the two is not zero, run the incremental update.
+
+    #if the difference between the two is not zero, run the incremental update.
     if len(self.pdbDiffName) != 0:
       self.nameDatPairs |= self.newPDBNames
-        #Download the difference first
-        #Make a folder to keep the downloaded PDB's
-      if not os.path.exists(self.tempPDB): os.makedirs(self.tempPDB)      
+      #Download the difference first
+      #Make a folder to keep the downloaded PDB's
+      if not os.path.exists(self.tempPDB):
+        os.makedirs(self.tempPDB)
+      
+      remove_names = set([])
+      # Go through list of PDBs and download them as needed  
       for i in self.pdbDiffName:
-        self.up.curlOut(self.tempPDB, i, purge=purge)
+        # Try to download any missing PDB files
+        pdb_exists = self.up.curlOut(self.tempPDB, i, purge=purge, err_logp=err_logp)
+
+        if pdb_exists:
           #Parse PDB data like temp, etc
           #This is separate from structure parsing. This just grabs
           #Experimental data from the PDB like pH and temp
-        pdbC = strucs.pdbDataC()
-        pdbC = self.up.pPdbData(i, pdbC)
-        self.newpdbdata[i] = pdbC
+          pdbC = strucs.pdbDataC()
+          pdbC = self.up.pPdbData(i, pdbC)
+          self.newpdbdata[i] = pdbC
 
-          #Generate new hairpin classes, as needed
-        hpC = strucs.hairpinC()
-        self.newHairpins.append(hpC)
+            #Generate new hairpin classes, as needed
+          hpC = strucs.hairpinC()
+          self.newHairpins.append(hpC)
+        else:
+          # write out error
+          erf = open(err_logp, "ab")
+          erf.write('{:%Y-%m-%d %Hh%Mm%Ss}: '.format(datetime.datetime.now()))
+          errstr = "PDB %s does not exist locally, cannot process it. Removing it from update.\n" % i
+          erf.write(errstr)
+          erf.close()
+          print errstr
+          remove_names.add(i) # set of names to remove from PBDDiffName
+      # Remove PDB file from list
+      self.pdbDiffName -= remove_names
+
+      # Write out list of PDBs that are wanted but cannot get downloaded
+      # or processed
+      update_err_pdb = os.path.join(listpath, "Update-Error_PDB_Not_Local.txt")
+      FILE = open(update_err_pdb, "wb")
+      for l in sorted(list(remove_names)):
+        FILE.write(l + "\n")
+      FILE.close()
 
         #Run x3DNA and DSSR
       self.mbpDir, self.outpDir, self.dssrDir = self.r3dna.genFiles(self.tempPDB, self.pdbDiffName,

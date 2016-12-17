@@ -2,6 +2,7 @@
 
 import sys, os, urllib, urllib2
 import xml.etree.ElementTree as ET
+import datetime
 # import pdbsplitter
 
 class Utilities:
@@ -139,15 +140,40 @@ class UpdateBPF:
 
     #This function uses the program curl to download needed PDB files
     # Purge flag will over-write existing file exclusion
-  def curlOut(self, path, fileName, purge=False):
-    curlCmd = 'curl -o "%s%s.pdb" http://files.rcsb.org/view/%s.pdb'
+  def curlOut(self, path, fileName, purge=False, err_logp = "error.log"):
+    # Download biological assembly
+    pdb_url = 'http://files.rcsb.org/view/%s.pdb1'
+    curlCmd = 'curl -o "%s%s.pdb" http://files.rcsb.org/view/%s.pdb1'
     temp_pdb_path = os.path.join(path, fileName.strip() + ".pdb")
     if self.fileExists(temp_pdb_path) == True and purge == False:
-      pass
+      return True
     else:
-      print "Downloading ( %s )" % fileName   
-      os.system(curlCmd % (path, fileName.strip(),
-                           fileName.strip()))
+      # First make sure download path exists
+      # Then first try to download Biological
+      # assembly PDB.
+      try:
+          urllib2.urlopen(pdb_url % fileName.strip())
+          print "Downloading ( %s )" % fileName   
+          os.system(curlCmd % (path, fileName.strip(),
+                               fileName.strip()))
+          return True
+      except urllib2.HTTPError, e:
+          errstr = ("Unable to download %s, error: %s" % (fileName.strip(), e.code))
+          print errstr
+          # Write out error to log
+          erf = open(err_logp, "ab")
+          erf.write('{:%Y-%m-%d %Hh%Mm%Ss}: '.format(datetime.datetime.now()))
+          erf.write(errstr + "\n")
+          erf.close()
+          return False
+      except urllib2.URLError, e:
+          errstr = ("Unable to download %s, error: %s" % (fileName.strip(), e.args))
+          print errstr
+          # Write out error to log
+          erf = open(err_logp, "ab")
+          erf.write('{:%Y-%m-%d %Hh%Mm%Ss}: '.format(datetime.datetime.now()))
+          erf.write(errstr + "\n")
+          return False
 
       #This function returns a list of PDB names that match the given search criteria.
       #Pass method: XRAY, NMR, BOTH, or DEV
@@ -185,8 +211,6 @@ class UpdateBPF:
         #Combine the above lists, and cast them as a set to remove duplicates
       self.all_pdb |= set(xRNA + xDNA + xHYB)
 
-      return(self.all_pdb)
-
       #Same as XRAY, but for NMR only
     elif method == "NMR":
         #Request for RNA-NMR
@@ -209,8 +233,6 @@ class UpdateBPF:
       nHYB = self.parseXmlQuery(nHYB)
 
       self.all_pdb |= set(nRNA + nDNA + nHYB)
-
-      return(self.all_pdb)
 
       #Same as above, but for both XRAY and NMR structures
     elif method == "BOTH":
@@ -254,8 +276,6 @@ class UpdateBPF:
         #Combine both XRAY and NMR lists
       self.all_pdb |= set(xRNA + xDNA + xHYB + nRNA + nDNA + nHYB)
 
-      return(self.all_pdb)
-
       #Used for DEV mode. Returns a small list of Xray PDB names to be processed,
       #This gives the dev a much quicker load time
     elif method == "DEV":
@@ -265,8 +285,8 @@ class UpdateBPF:
       post = urllib2.urlopen(req)
       xHYB = [x.strip() for x in post]
       xHYB = self.parseXmlQuery(xHYB)
-      self.all_pdb |= set(xHYB)
-      return(self.all_pdb)
+      # self.all_pdb |= set(xHYB)
+      self.all_pdb.add("5J8B") # add one example of duplex in bio assembly only
 
       #Takes the path to list file and generates a set of PDB names
       #Returns this list
@@ -277,17 +297,15 @@ class UpdateBPF:
         print i.strip().upper()
       FILE.close()
 
-      return(self.all_pdb)
-      sys.exit(0)
+    # Keep documentation of update request
+    # PDB list
+    all_pdb_req = os.path.join(listpath, "Update-All_PDB_Requests.txt")
+    FILE = open(all_pdb_req, "wb")
+    for l in sorted(list(self.all_pdb)):
+      FILE.write(l + "\n")
+    FILE.close()
+    return(self.all_pdb)
 
-      #This function is used to split multiple model PDB files
-      #before they are processed by 3DNA
-  # def runSplitter(self):
-  #   if len(self.all_multi) < 1: print "Multi-model PDB list is empty"
-  #   else:
-  #     split = pdbsplitter.PDBSplitter(self.all_multi, self.tmpPdbDir)
-  #     split.runSplitter()
-  #     self.split_names = set(split.split_names)
 
   def returnList(self, selPars, loRes, hiRes):
     seleNames = set([])
