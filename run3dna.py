@@ -31,7 +31,9 @@ class Run3DNA:
     if not os.path.exists(self.outpDir): os.makedirs(self.outpDir)
     if not os.path.exists(self.dssrDir): os.makedirs(self.dssrDir)        
     self.findPair = "find_pair -p -symm -original_coordinate %s.pdb %s.mbp" 
-    self.dssr = "x3dna-dssr --symm --long-idstr -i=%s.pdb -o=%s.dssr"
+    # self.dssr = "x3dna-dssr --symm --long-idstr -i=%s.pdb -o=%s.dssr"
+    # Run DSSR command
+    self.dssr = ("x3dna-dssr --json --more --non-pair --get-hbonds --symm -i=%s -o=%s")
     for i in self.names:
         #Check if MBP file already exists
       temp_mbp_path = os.path.join(self.mbpDir, i + ".mbp")
@@ -39,13 +41,31 @@ class Run3DNA:
         os.system(self.findPair % ((self.pdbPath + i),
                                    (self.mbpDir + i)))
         os.system("analyze -c -symm allpairs.ana")
-        os.system(self.dssr % ((self.pdbPath + i),
-                          (self.dssrDir + i)))
+        # Detect what type of PDB file is available for this
+        # Check for PDB first
+        pdb_type = ".pdb"
+        inp_pdb = os.path.join(self.pdbPath, i + pdb_type)
+        dssr_path = os.path.join(self.dssrDir, i + ".json")
+        if os.path.exists(inp_pdb):
+          os.system(self.dssr % (inp_pdb, dssr_path))
+        # If PDB does not exist, try cif
+        else:
+          pdb_type = ".cif"
+          inp_pdb = os.path.join(self.pdbPath, i + pdb_type)
+          if os.path.exists(inp_pdb):
+            os.system(self.dssr % (inp_pdb, dssr_path))
+          # Last attempt, xml file in same directory
+          else:
+            pdb_type = ".xml"
+            inp_pdb = os.path.join(self.pdbPath, i + pdb_type)
         temp_outp_path = os.path.join(i + ".outp")
         if self.fileExists(temp_outp_path):
           os.system("mv %s.outp %s" % (i, self.outpDir))
 
       #cleanup
+    # Cleanup DSSR
+    # os.system("x3dna-dssr --cleanup")
+    # Cleanup 3DNA
     if self.fileExists(self.curDir + "allpairs.ana") == True:
       os.system("rm %s" % (self.curDir + "allpairs.ana"))
     if self.fileExists(self.curDir + "auxiliary.par") == True:
@@ -74,20 +94,20 @@ class Run3DNA:
       os.system("rm %s" % (self.curDir + "tmp_file"))
     if self.fileExists(self.curDir + "allpairs.pdb") == True:
       os.system("rm %s" % (self.curDir + "allpairs.pdb"))
-      #DSSR files
-    if self.fileExists(self.curDir + "dssr-hairpins.pdb") == True:
-      os.system("rm %s" % (self.curDir + "dssr-hairpins.pdb"))
-    if self.fileExists(self.curDir + "dssr-helices.pdb") == True:
-      os.system("rm %s" % (self.curDir + "dssr-helices.pdb"))
-    if self.fileExists(self.curDir + "dssr-multiplets.pdb") == True:
-      os.system("rm %s" % (self.curDir + "dssr-multiplets.pdb"))
-    if self.fileExists(self.curDir + "dssr-pairs.pdb") == True:
-      os.system("rm %s" % (self.curDir + "dssr-pairs.pdb"))
-    if self.fileExists(self.curDir + "dssr-stems.pdb") == True:
-      os.system("rm %s" % (self.curDir + "dssr-stems.pdb"))
-    if self.fileExists(self.curDir + "dssr-Bfactors.dat") == True:
-      os.system("rm %s" % (self.curDir + "dssr-Bfactors.dat"))
-    if self.fileExists(self.curDir + "dssr-torsions.dat") == True:
-      os.system("rm %s" % (self.curDir + "dssr-torsions.dat"))
+    #   #DSSR files
+    # if self.fileExists(self.curDir + "dssr-hairpins.pdb") == True:
+    #   os.system("rm %s" % (self.curDir + "dssr-hairpins.pdb"))
+    # if self.fileExists(self.curDir + "dssr-helices.pdb") == True:
+    #   os.system("rm %s" % (self.curDir + "dssr-helices.pdb"))
+    # if self.fileExists(self.curDir + "dssr-multiplets.pdb") == True:
+    #   os.system("rm %s" % (self.curDir + "dssr-multiplets.pdb"))
+    # if self.fileExists(self.curDir + "dssr-pairs.pdb") == True:
+    #   os.system("rm %s" % (self.curDir + "dssr-pairs.pdb"))
+    # if self.fileExists(self.curDir + "dssr-stems.pdb") == True:
+    #   os.system("rm %s" % (self.curDir + "dssr-stems.pdb"))
+    # if self.fileExists(self.curDir + "dssr-Bfactors.dat") == True:
+    #   os.system("rm %s" % (self.curDir + "dssr-Bfactors.dat"))
+    # if self.fileExists(self.curDir + "dssr-torsions.dat") == True:
+    #   os.system("rm %s" % (self.curDir + "dssr-torsions.dat"))
       #Return directory where mbp/outp and pair pdb's are stored
     return(self.mbpDir, self.outpDir, self.dssrDir)

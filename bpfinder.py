@@ -10,6 +10,7 @@ import datetime
 # Custom modules
 import control, updateBPF, menu
 import cPickle as pickle
+import argparse
 
 # Start clock to keep track of run-time
 startTime = clock()

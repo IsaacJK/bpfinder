@@ -286,7 +286,7 @@ class UpdateBPF:
       xHYB = [x.strip() for x in post]
       xHYB = self.parseXmlQuery(xHYB)
       # self.all_pdb |= set(xHYB)
-      self.all_pdb.add("5J8B") # add one example of duplex in bio assembly only
+      self.all_pdb.add("1PFE") # "5J8B" # add one example of duplex in bio assembly only
 
       #Takes the path to list file and generates a set of PDB names
       #Returns this list

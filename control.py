@@ -171,7 +171,7 @@ class Control:
           erf.close()
           print errstr
           remove_names.add(i) # set of names to remove from PBDDiffName
-      # Remove PDB file from list
+      # Remove non-existant local PDB files from update list
       self.pdbDiffName -= remove_names
 
       # Write out list of PDBs that are wanted but cannot get downloaded
@@ -182,10 +182,10 @@ class Control:
         FILE.write(l + "\n")
       FILE.close()
 
-        #Run x3DNA and DSSR
+      #Run x3DNA and DSSR
       self.mbpDir, self.outpDir, self.dssrDir = self.r3dna.genFiles(self.tempPDB, self.pdbDiffName,
                                                                     purge=purge)
-        #Parse the new files only to newpairs
+      #Parse the new files only to newpairs
       self.parse.parseOutp(self.outpDir, self.pdbDiffName, self.newpairs)
 
         #Generate a list of PDB names ONLY which have base pairs
